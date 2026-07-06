@@ -345,6 +345,47 @@ body.touch #toast.show{transform:translateY(0) rotate(-.8deg)}
   .t-sub{line-height:1.55}
   .t-hint{display:none}
 }
+@media (orientation: portrait){
+  body.touch #mission-card{left:calc(12px + env(safe-area-inset-left,0px));right:calc(12px + env(safe-area-inset-right,0px));
+    top:calc(10px + var(--sat));bottom:auto;max-width:none}
+  body.touch #mission-body{padding:12px 12px 10px;gap:9px}
+  #mission-icon{width:32px;height:32px;font-size:16px}
+  #mission-text{font-size:13px;line-height:1.38}
+  #mission-step{font-size:9px}
+  body.touch #side-icons{left:calc(12px + env(safe-area-inset-left,0px));right:calc(12px + env(safe-area-inset-right,0px));
+    top:calc(84px + var(--sat));bottom:auto;display:flex;flex-direction:row;gap:6px}
+  body.touch #side-icons .s-icon{flex:1;min-width:0;width:auto;height:42px}
+  body.touch #side-icons .s-icon svg{width:18px;height:18px}
+  body.touch #side-icons .s-icon .lbl{font-size:7.2px;line-height:1;white-space:nowrap}
+  body.touch #area-label{left:calc(14px + env(safe-area-inset-left,0px));bottom:auto;top:calc(136px + var(--sat));
+    font-size:clamp(21px,6vw,28px)}
+  body.touch #toast{top:calc(136px + var(--sat));left:12px;right:12px;max-width:none;
+    transform:translateY(-14px) rotate(-.8deg)}
+  body.touch #toast.show{transform:translateY(0) rotate(-.8deg)}
+  body.touch #dialogue{bottom:calc(154px + var(--sab));width:min(calc(var(--app-w) - 24px),520px)}
+  #dlg-box{min-height:76px;padding:14px 15px 10px}
+  #dlg-text{font-size:13.5px;line-height:1.62}
+  #dlg-name{font-size:13px;padding:5px 17px 3px}
+  #joy{left:max(16px, calc(env(safe-area-inset-left,0px) + 14px));bottom:calc(20px + var(--sab));width:118px;height:118px}
+  #joy-knob{width:50px;height:50px}
+  #act-btn{right:max(18px, calc(env(safe-area-inset-right,0px) + 16px));bottom:calc(42px + var(--sab));width:76px;height:76px}
+  .wp-pill{font-size:12px;padding:6px 10px 4px}
+  .wbubble{max-width:min(220px,56vw);font-size:12px}
+  .wname{font-size:10px}
+  .modal{align-items:flex-end;padding:10px 10px calc(10px + var(--sab))}
+  .m-card{width:min(calc(var(--app-w) - 20px),560px);max-height:calc(var(--app-h) - 22px);padding:16px}
+  .deduce-grid,.final-options{grid-template-columns:1fr}
+  #ending{align-items:flex-end;padding:12px 12px calc(12px + var(--sab))}
+  #end-card{width:100%;padding:12px 0}
+}
+@media (orientation: portrait) and (max-height:700px){
+  body.touch #mission-body{padding:10px 11px 8px}
+  body.touch #side-icons{top:calc(76px + var(--sat))}
+  body.touch #dialogue{bottom:calc(138px + var(--sab))}
+  #joy{width:106px;height:106px;bottom:calc(16px + var(--sab))}
+  #joy-knob{width:46px;height:46px}
+  #act-btn{width:68px;height:68px;bottom:calc(36px + var(--sab));font-size:13px}
+}
 @media (orientation: landscape){
   #title-screen{display:grid;grid-template-columns:minmax(210px,34vw) minmax(280px,1fr);
     grid-template-areas:"tag sub" "main sub" "btn sub" "hint sub";
@@ -1458,6 +1499,18 @@ if(IS_TOUCH){
 const camState = { yaw:0, dist:6.4, height:3.2 };
 window.__festivalMysteryDebug = {STATE, P, camState, joy, look};
 
+function applyResponsiveCamera(){
+  const {w, h} = appSize();
+  const portrait = h > w;
+  document.body.classList.toggle('portrait-play', portrait);
+  camera.fov = portrait ? 66 : 58;
+  camState.dist = portrait ? 7.4 : 6.4;
+  if(portrait && camState.height < 3.35) camState.height = 3.35;
+  if(!portrait && camState.height > 5.1) camState.height = 5.1;
+  camera.updateProjectionMatrix();
+}
+applyResponsiveCamera();
+
 function updateDebugProbe(){
   document.body.dataset.playerX = P.x.toFixed(3);
   document.body.dataset.playerZ = P.z.toFixed(3);
@@ -2170,14 +2223,18 @@ startBtn.addEventListener('click', beginInvestigation);
 startBtn.addEventListener('pointerup', beginInvestigation, {passive:false});
 startBtn.addEventListener('touchend', beginInvestigation, {passive:false});
 
-addEventListener('resize', ()=>{
+function resizeGameView(){
   syncViewportSize();
   const {w, h} = appSize();
   camera.aspect = w/h;
-  camera.updateProjectionMatrix();
+  applyResponsiveCamera();
   renderer.setSize(w, h);
   drawTitleClouds();
-});
+}
+addEventListener('resize', resizeGameView);
+addEventListener('orientationchange', ()=> setTimeout(resizeGameView, 180));
+window.visualViewport?.addEventListener('resize', resizeGameView);
+window.visualViewport?.addEventListener('scroll', resizeGameView);
 
 window.__festivalMysteryDebug = {
   STATE, P, camState, joy, look,
