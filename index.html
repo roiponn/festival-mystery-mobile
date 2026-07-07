@@ -162,7 +162,7 @@ body::after{content:"";position:fixed;inset:0;z-index:95;pointer-events:none;opa
   transform:rotate(-1.6deg);box-shadow:2px 3px 0 rgba(46,42,37,.3);letter-spacing:.08em}
 #dlg-name.player{background:var(--ink)}
 #dlg-box{background:var(--paper);padding:20px 22px 14px;box-shadow:var(--card-sh);
-  cursor:pointer;min-height:96px;transform:rotate(.3deg)}
+  cursor:pointer;min-height:96px;transform:rotate(.3deg);touch-action:manipulation}
 #dlg-text{font-weight:700;font-size:16px;line-height:1.9;letter-spacing:.02em}
 #dlg-next{text-align:right;margin-top:4px}
 #dlg-next span{display:inline-block;background:var(--red);color:var(--paper);
@@ -300,7 +300,7 @@ body.touch #touch-ui{display:block}
 #act-btn{position:absolute;right:max(20px, calc(env(safe-area-inset-right,0px) + 16px));bottom:calc(122px + var(--sab));width:78px;height:78px;
   border-radius:50%;background:var(--red);color:var(--paper);border:2.5px solid var(--paper);
   font-family:var(--f-hand);font-weight:700;font-size:15px;line-height:1.1;word-break:keep-all;
-  box-shadow:3px 4px 0 rgba(46,42,37,.4);pointer-events:auto;display:none;align-items:center;justify-content:center}
+  box-shadow:3px 4px 0 rgba(46,42,37,.4);pointer-events:auto;display:none;align-items:center;justify-content:center;touch-action:manipulation}
 #act-btn.show{display:flex}
 #act-btn:active{transform:scale(.92)}
 
@@ -1423,6 +1423,35 @@ addEventListener('keyup', e=> keys[e.code] = false);
 
 const joy = {active:false, id:null, dx:0, dz:0, lastDx:0, lastDz:0};
 const look = {active:false, id:null, x:0, y:0, moved:false};
+let lastPressEvent = {source:'', at:0};
+function consumePressEvent(e){
+  if(!e) return true;
+  const now = performance.now();
+  const type = e.type;
+  if(type === 'pointerdown'){
+    if(e.pointerType === 'mouse' && e.button !== 0) return false;
+    lastPressEvent = {source:'pointer', at:now};
+  } else if(type === 'touchend'){
+    if(lastPressEvent.source === 'pointer' && now - lastPressEvent.at < 700){
+      if(e.cancelable) e.preventDefault();
+      return false;
+    }
+    lastPressEvent = {source:'touch', at:now};
+  } else if(type === 'click'){
+    if((lastPressEvent.source === 'pointer' || lastPressEvent.source === 'touch') && now - lastPressEvent.at < 700){
+      if(e.cancelable) e.preventDefault();
+      return false;
+    }
+    lastPressEvent = {source:'click', at:now};
+  }
+  if(e.cancelable) e.preventDefault();
+  return true;
+}
+function addPressHandlers(el, handler){
+  el.addEventListener('pointerdown', e=>{ if(consumePressEvent(e)) handler(e); }, {passive:false});
+  el.addEventListener('touchend', e=>{ if(consumePressEvent(e)) handler(e); }, {passive:false});
+  el.addEventListener('click', e=>{ if(consumePressEvent(e)) handler(e); }, {passive:false});
+}
 if(IS_TOUCH){
   const joyEl = $('joy'), knob = $('joy-knob');
   const gameCanvas = renderer.domElement;
@@ -1460,11 +1489,9 @@ if(IS_TOUCH){
   addEventListener('pointerup', finishPointer, {passive:false});
   addEventListener('pointercancel', finishPointer, {passive:false});
   joyEl.addEventListener('lostpointercapture', finishPointer, {passive:false});
-  $('act-btn').addEventListener('pointerdown', e=>{
-    if(e.pointerType === 'mouse' && e.button !== 0) return;
-    e.preventDefault();
+  addPressHandlers($('act-btn'), ()=>{
     if(STATE.dialogueActive) advanceDialogue(); else tryInteract();
-  }, {passive:false});
+  });
   gameCanvas.addEventListener('pointerdown', e=>{
     if(e.pointerType === 'mouse' && e.button !== 0) return;
     if(!STATE.started || STATE.ended || STATE.dialogueActive) return;
@@ -1656,7 +1683,7 @@ function endDialogue(){
   const cb = dlgOnEnd; dlgOnEnd = null;
   if(cb) cb();
 }
-$('dlg-box').addEventListener('click', advanceDialogue);
+addPressHandlers($('dlg-box'), advanceDialogue);
 
 function currentMission(){ return MISSIONS[STATE.missionIdx] || null; }
 
